@@ -705,15 +705,9 @@ async function confirmBatchTransaction(expectedSeqno, maxWaitMs = 120000) {
 
 // ==========================
 // 🔹 Withdrawal notifications
-//    • user DM      : username / id / amount / wallet / transaction link + [Open Bot][View Transaction]
-//    • payments chan: masked "PAYMENT SENT" card + same buttons
+//    • user DM      : username / id / amount / wallet / transaction link (no buttons)
+//    • payments chan: masked "PAYMENT SENT" card (no buttons)
 // ==========================
-function buildPayoutKeyboard(txLink) {
-  const keys = [{ text: `🚀 Open ${BOT_NAME}`, url: BOT_URL }];
-  if (txLink) keys.push({ text: "🔍 View Transaction", url: txLink });
-  return { inline_keyboard: [keys] };
-}
-
 // Message sent to the user when HIS withdrawal completes
 function buildUserPayoutCaption({ userId, profile, amountTon, address, txLink }) {
   const who = profile.username ? `@${profile.username}` : (profile.firstName || String(userId));
@@ -759,8 +753,7 @@ async function sendUserNotification(item, txHash) {
         chat_id: item.userId,
         photo: PAYMENT_IMAGE_URL,
         caption,
-        parse_mode: 'HTML',
-        reply_markup: buildPayoutKeyboard(txLink)
+        parse_mode: 'HTML'
       }),
     });
     const data = await res.json();
@@ -788,8 +781,7 @@ async function sendChannelNotification(items, txHash) {
           chat_id:      WITHDRAWAL_CHANNEL_ID,
           photo:        PAYMENT_IMAGE_URL,
           caption,
-          parse_mode:   'HTML',
-          reply_markup: buildPayoutKeyboard(txLink)
+          parse_mode:   'HTML'
         }),
       });
       const d = await res.json();
@@ -1343,7 +1335,6 @@ async function notifyDeposit({ userId, amountTon, newBalance, txLink }) {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: userId, photo: PAYMENT_IMAGE_URL, caption, parse_mode: 'HTML',
-        reply_markup: buildPayoutKeyboard(txLink),
       }),
     });
     console.log(`📨 Deposit notification sent to user ${userId}`);
