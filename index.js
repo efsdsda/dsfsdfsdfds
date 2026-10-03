@@ -721,7 +721,7 @@ function buildUserPayoutCaption({ userId, profile, amountTon, address, txLink })
 }
 
 // Message posted to the payments channel (name + id are masked)
-function buildChannelPayoutCaption(userId, profile, amountTon) {
+function buildChannelPayoutCaption(userId, profile, amountTon, txLink) {
   const name = profile.firstName || profile.username || 'User';
   return (
     `💎 <b>PAYMENT SENT</b>\n\n` +
@@ -732,7 +732,7 @@ function buildChannelPayoutCaption(userId, profile, amountTon) {
     `✅ <b>Status:</b> SUCCESSFUL\n` +
     `━━━━━━━━━━━━━━━━━━━━\n\n` +
     `💎 Your reward has been processed and sent directly to your TON Wallet.\n\n` +
-    `🔗 <b>Transaction:</b> Verified On-Chain\n` +
+    (txLink ? `🔗 <b>Transaction:</b> <a href="${txLink}">View on Blockchain</a>\n` : `🔗 <b>Transaction:</b> Verified On-Chain\n`) +
     `⚡️ <b>Processing:</b> Fast &amp; Secure\n\n` +
     `🏆 <b>${BOT_NAME}</b>\n` +
     `<i>Earn • Complete • Get Paid</i>`
@@ -773,7 +773,7 @@ async function sendChannelNotification(items, txHash) {
   // Each item in the batch is sent as a separate message
   for (const item of items) {
     const profile = await getUserProfile(item.userId);
-    const caption = buildChannelPayoutCaption(item.userId, profile, item.roundedAmount);
+    const caption = buildChannelPayoutCaption(item.userId, profile, item.roundedAmount, txLink);
     try {
       const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
