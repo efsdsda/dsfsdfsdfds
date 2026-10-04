@@ -1189,7 +1189,7 @@ async function unlockExpiredDailyLimits() {
 //      deposits/{uid}/{id}   = { userId, amount, txHash, receiver, status: pending|completed, ts, ... }
 //      users/{uid}/tonBalance
 //      balanceLogs/{uid}     = { type:'deposit', amount, currency:'TON', depositId, status, ts }
-//      referralEarnings/{referrerId} + balanceLogs  (deposit commission, depositCommissionPct)
+//      (referral deposit = notification only to the referrer, no commission credited)
 //    The bot scans the deposit wallet and credits a transaction in ONE of two ways:
 //      1) the tx comment carries the user id  (JSON {"user_id":..}, "User ID: 123.." or just the number)
 //      2) the tx hash matches a *pending* deposits/{uid}/{id} record created by the Mini App
@@ -1266,8 +1266,9 @@ async function tgSend(chatId, text, extra = {}) {
   } catch { return false; }
 }
 
-// Same rule as the backend's handleVerifyDeposit: depositCommissionPct % of the deposit goes straight
-// to the referrer's TON balance.
+// Referral deposit notice: NO balance is credited here anymore.
+// It only tells the referrer that their referral deposited, and that they will earn
+// depositCommissionPct % (default 10%) profit when that referral buys from the store.
 async function creditReferralCommission(userId, amountTon, profile) {
   try {
     const referrerId = (await db.ref(`users/${userId}/referredBy`).once('value')).val();
@@ -1275,21 +1276,14 @@ async function creditReferralCommission(userId, amountTon, profile) {
     if (!(await db.ref(`users/${referrerId}`).once('value')).exists()) return;
     const cfgPct = (await db.ref('config/depositCommissionPct').once('value')).val();
     const pct = Number(cfgPct ?? 10);
-    const commission = Number((amountTon * (pct / 100)).toFixed(6));
-    if (!(commission > 0)) return;
 
-    await db.ref(`users/${referrerId}/tonBalance`).transaction(cur => Number(((Number(cur) || 0) + commission).toFixed(6)));
-    await db.ref(`balanceLogs/${referrerId}`).push({
-      type: 'referral_deposit_commission', amount: commission, currency: 'TON', relatedUser: String(userId), ts: Date.now(),
-    });
     const referralName = profile.firstName || profile.username || 'Your referral';
-    await db.ref(`referralEarnings/${referrerId}`).push({
-      type: 'deposit_commission', fromUserId: String(userId), fromUserName: referralName,
-      depositTon: amountTon, amount: commission, currency: 'TON', ts: Date.now(),
-    });
     await tgSend(referrerId,
-      `💰 Your referral deposited!\n\n👤 ${referralName} deposited ${amountTon} TON.\n\n📈 +${commission} TON (${pct}%) credited directly to your TON balance.`);
-    console.log(`🤝 Referral commission ${commission} TON → ${referrerId}`);
+      `🎉 Great news!\n\n` +
+      `👤 ${referralName}, the friend you invited, just made a deposit of ${Number(amountTon).toFixed(2)} TON.\n\n` +
+      `💰 You will earn a ${pct}% profit every time they buy from the store.\n\n` +
+      `🚀 Keep inviting friends to earn more!`);
+    console.log(`🤝 Referral deposit notice sent → ${referrerId} (no balance credited)`);
   } catch (e) { console.log(`⚠️ creditReferralCommission: ${e.message}`); }
 }
 
