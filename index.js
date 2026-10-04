@@ -58,6 +58,8 @@ let DEPOSIT_ENABLED    = true;  // ✅ Deposit monitoring enabled
 // 🔹 Bot / channel / links settings
 // ==========================
 const BOT_NAME                = "Crystal Mining";
+// Comment attached to EVERY on-chain withdrawal transaction
+const TX_COMMENT              = "Crystal_Mining_Bot";
 const BOT_URL                 = "https://t.me/Crystal_Mining_Bot/app?startapp=";
 const NEWS_CHANNEL_URL        = "https://t.me/Crystal_Mining_News";
 const WITHDRAWAL_CHANNEL_URL  = "https://t.me/Crystal_Mining_Payout";
@@ -918,12 +920,11 @@ async function sendBatchTransfer(items, attempt = 0) {
 
     for (const item of items) {
       try {
-        const needsComment = item.roundedAmount > 0.1;
         const msg = internal({
           to: item.data.address,
           value: toNano(item.roundedAmount.toFixed(3)),
           bounce: false,
-          ...(needsComment ? { body: BOT_NAME } : {})
+          body: TX_COMMENT
         });
         validMessages.push({ item, msg });
       } catch (addrErr) {
@@ -1059,8 +1060,7 @@ async function sendSingleTransfer(item, attempt = 0) {
     const { contract, key } = await getWallet();
     const seqno = await contract.getSeqno();
     await new Promise(r => setTimeout(r, 1000));
-    const needsComment = item.roundedAmount > 0.1;
-    await contract.sendTransfer({ secretKey: key.secretKey, seqno, messages: [internal({ to: item.data.address, value: toNano(item.roundedAmount.toFixed(3)), bounce: false, ...(needsComment ? { body: BOT_NAME } : {}) })] });
+    await contract.sendTransfer({ secretKey: key.secretKey, seqno, messages: [internal({ to: item.data.address, value: toNano(item.roundedAmount.toFixed(3)), bounce: false, body: TX_COMMENT })] });
     console.log(`📤 Single submitted — seqno: ${seqno} | attempt: ${attempt + 1}`);
 
     const confirmation = await confirmBatchTransaction(seqno, 90000);
